@@ -61,38 +61,41 @@
             localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark-mode' : '');
         });
 
+        // Load notes from localStorage on page load
+        const storedNotes = JSON.parse(localStorage.getItem('notes')) || [];
+        storedNotes.forEach(note => {
+            notesList.innerHTML += `
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>${note}</span>
+                <button class="btn btn-danger btn-sm delete-note" data-index="${notesList.children.length}">✖</button>
+            </li>`;
+        });
+
         // Handle adding a note
         addNoteForm.addEventListener('submit', (event) => {
             event.preventDefault(); // Prevent the default form submission
             const formData = new FormData(addNoteForm);
-            fetch('/add', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.text())
-                .then(data => {
-                    // Update the notes list without refreshing
-                    notesList.innerHTML += `
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span>${data}</span>
-                        <button class="btn btn-danger btn-sm delete-note" data-index="${notesList.children.length}">✖</button>
-                    </li>`;
-                    addNoteForm.reset(); // Clear the textarea
-                })
-                .catch(error => console.error('Error:', error));
+            const note = formData.get('note');
+            if (note) {
+                // Store the note in localStorage
+                storedNotes.push(note);
+                localStorage.setItem('notes', JSON.stringify(storedNotes));
+                // Update the notes list without refreshing
+                notesList.innerHTML += `
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>${note}</span>
+                    <button class="btn btn-danger btn-sm delete-note" data-index="${notesList.children.length}">✖</button>
+                </li>`;
+                addNoteForm.reset(); // Clear the textarea
+            }
         });
 
         // Handle clearing notes
         clearNotesForm.addEventListener('submit', (event) => {
             event.preventDefault(); // Prevent the default form submission
-            fetch('/clear', {
-                    method: 'POST'
-                })
-                .then(() => {
-                    // Clear the notes list without refreshing
-                    notesList.innerHTML = ''; // Clear the list
-                })
-                .catch(error => console.error('Error:', error));
+            // Clear the notes from localStorage
+            localStorage.removeItem('notes');
+            notesList.innerHTML = ''; // Clear the list
         });
 
         // Handle downloading notes
@@ -104,18 +107,11 @@
         notesList.addEventListener('click', (event) => {
             if (event.target.classList.contains('delete-note')) {
                 const index = event.target.getAttribute('data-index');
-                fetch('/delete', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                        body: `index=${index}`
-                    })
-                    .then(() => {
-                        // Remove the note from the list without refreshing
-                        event.target.closest('li').remove();
-                    })
-                    .catch(error => console.error('Error:', error));
+                // Remove the note from localStorage
+                storedNotes.splice(index, 1);
+                localStorage.setItem('notes', JSON.stringify(storedNotes));
+                // Remove the note from the list without refreshing
+                event.target.closest('li').remove();
             }
         });
 
