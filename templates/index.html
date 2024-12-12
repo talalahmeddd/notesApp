@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>Notes App</title>
+</head>
+
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center">Notes</h1>
+        <button id="theme-toggle" class="mb-3">
+            <i class="fas fa-moon"></i> <!-- Moon icon for dark mode -->
+        </button>
+        <form id="add-note-form">
+            <div class="form-group">
+                <textarea class="form-control" name="note" rows="5" placeholder="Write your note here..." required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Note</button>
+        </form>
+        <form id="clear-notes-form" class="mt-3">
+            <button type="submit" class="btn btn-danger">Clear Notes</button>
+        </form>
+        <button id="download-notes" class="btn btn-info mt-3">Download Notes</button>
+        <ul class="list-group mt-4" id="notes-list">
+            {% for note in notes %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>{{ note }}</span>
+                <button class="btn btn-danger btn-sm delete-note" data-index="{{ loop.index0 }}">✖</button>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <script>
+        const toggleButton = document.getElementById('theme-toggle');
+        const addNoteForm = document.getElementById('add-note-form');
+        const clearNotesForm = document.getElementById('clear-notes-form');
+        const notesList = document.getElementById('notes-list');
+        const downloadButton = document.getElementById('download-notes');
+        const textarea = addNoteForm.querySelector('textarea');
+
+        // Load theme from localStorage
+        const currentTheme = localStorage.getItem('theme');
+        if (currentTheme) {
+            document.body.classList.add(currentTheme);
+            toggleButton.innerHTML = currentTheme === 'dark-mode' ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+        }
+
+        // Event listener for the theme toggle button
+        toggleButton.addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            const icon = document.body.classList.contains('dark-mode') ? 'fas fa-sun' : 'fas fa-moon';
+            toggleButton.innerHTML = `<i class="${icon}"></i>`;
+            // Save the current theme to localStorage
+            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark-mode' : '');
+        });
+
+        // Handle adding a note
+        addNoteForm.addEventListener('submit', (event) => {
+            event.preventDefault(); // Prevent the default form submission
+            const formData = new FormData(addNoteForm);
+            fetch('/add', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.text())
+                .then(data => {
+                    // Update the notes list without refreshing
+                    notesList.innerHTML += `
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>${data}</span>
+                        <button class="btn btn-danger btn-sm delete-note" data-index="${notesList.children.length}">✖</button>
+                    </li>`;
+                    addNoteForm.reset(); // Clear the textarea
+                })
+                .catch(error => console.error('Error:', error));
+        });
+
+        // Handle clearing notes
+        clearNotesForm.addEventListener('submit', (event) => {
+            event.preventDefault(); // Prevent the default form submission
+            fetch('/clear', {
+                    method: 'POST'
+                })
+                .then(() => {
+                    // Clear the notes list without refreshing
+                    notesList.innerHTML = ''; // Clear the list
+                })
+                .catch(error => console.error('Error:', error));
+        });
+
+        // Handle downloading notes
+        downloadButton.addEventListener('click', () => {
+            window.location.href = '/download'; // Redirect to download route
+        });
+
+        // Handle deleting notes
+        notesList.addEventListener('click', (event) => {
+            if (event.target.classList.contains('delete-note')) {
+                const index = event.target.getAttribute('data-index');
+                fetch('/delete', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `index=${index}`
+                    })
+                    .then(() => {
+                        // Remove the note from the list without refreshing
+                        event.target.closest('li').remove();
+                    })
+                    .catch(error => console.error('Error:', error));
+            }
+        });
+
+        // Handle Enter and Shift + Enter in the textarea
+        textarea.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault(); // Prevent the default action (new line)
+                addNoteForm.dispatchEvent(new Event('submit')); // Trigger the form submission
+            }
+        });
+    </script>
+</body>
+
+</html>
