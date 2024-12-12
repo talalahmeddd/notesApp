@@ -17,12 +17,15 @@ def index():
 
 @app.route('/add', methods=['POST'])
 def add_note():
-    note = request.form.get('note')
-    if note:
-        notes.append(note + '\n')  # Add newline for better formatting
-        save_notes()  # Save notes to file
-        return note  # Return the added note for display
-    return '', 400  # Return an error if no note is provided
+    try:
+        note = request.form.get('note')
+        if note:
+            notes.append(note + '\n')
+            save_notes()
+            return note
+        return '', 400
+    except Exception as e:
+        return str(e), 500
 
 @app.route('/delete', methods=['POST'])
 def delete_note():
@@ -49,4 +52,4 @@ def save_notes():
         file.writelines(notes)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
